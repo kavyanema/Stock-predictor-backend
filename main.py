@@ -16,7 +16,6 @@ app.add_middleware(
 )
 
 def get_currency_info(symbol):
-    """Detect currency based on stock symbol suffix and exchange"""
     symbol_upper = symbol.upper()
     
     # Indian stocks (NSE/BSE)
@@ -75,7 +74,6 @@ def fetch_prices(symbol):
     return np.array(prices), api_currency
 
 def create_features(prices, lookback=10):
-    """Create features from historical prices"""
     X, y = [], []
     
     for i in range(lookback, len(prices)):
@@ -102,56 +100,37 @@ def predict_and_evaluate(symbol: str):
         if len(prices) < 50:
             return {"error": "Not enough data"}
 
-        # -----------------------
-        # DETECT CURRENCY
-        # -----------------------
+
         currency_code, currency_symbol, exchange_name = get_currency_info(symbol)
         
-        # Use API currency if available, otherwise use detected
         if api_currency:
             currency_code = api_currency.upper()
 
-        # -----------------------
-        # CREATE FEATURES
-        # -----------------------
         lookback = 10
         X, y = create_features(prices, lookback)
         
         if len(X) < 50:
             return {"error": "Not enough data after feature creation"}
 
-        # -----------------------
-        # TRAIN / TEST SPLIT
-        # -----------------------
+
         split = int(len(X) * 0.8)
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        # -----------------------
-        # SCALE FEATURES
-        # -----------------------
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
-        # -----------------------
-        # TRAIN MODEL
-        # -----------------------
+
         model = Ridge(alpha=1.0)
         model.fit(X_train_scaled, y_train)
 
         predictions = model.predict(X_test_scaled)
 
-        # -----------------------
-        # ACCURACY METRICS
-        # -----------------------
         mae = mean_absolute_error(y_test, predictions)
         rmse = mean_squared_error(y_test, predictions) ** 0.5
         mape = np.mean(np.abs((y_test - predictions) / y_test)) * 100
 
-        # -----------------------
-        # NEXT DAY PREDICTION
-        # -----------------------
         current_price = prices[-1]
         
         recent_window = prices[-lookback:]
@@ -166,7 +145,6 @@ def predict_and_evaluate(symbol: str):
         next_features_scaled = scaler.transform(next_features)
         raw_prediction = model.predict(next_features_scaled)[0]
         
-        # CONSERVATIVE DAMPENING (±5% limit)
         max_change = current_price * 0.05
         predicted_change = raw_prediction - current_price
         
@@ -202,3 +180,4 @@ def predict_and_evaluate(symbol: str):
 
     except Exception as e:
         return {"error": str(e)}
+
